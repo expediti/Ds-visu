@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Structures Visualizer</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (to interpret JSX in the browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Custom animations for smooth transitions */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .node-transition {
+            transition: all 0.5s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Icons (Inline SVGs to avoid dependencies) ---
+        const IconPlay = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
+        const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+        const IconRotate = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>;
+        
+        // --- Shared Components ---
+
+        const Card = ({ title, children, className = "" }) => (
+            <div className={`bg-white rounded-xl shadow-lg p-6 border border-slate-200 ${className}`}>
+                <h3 className="text-xl font-bold text-slate-800 mb-4">{title}</h3>
+                {children}
+            </div>
+        );
+
+        const Button = ({ onClick, children, variant = "primary", disabled = false, icon: Icon }) => {
+            const baseStyle = "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed select-none";
+            const variants = {
+                primary: "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800",
+                secondary: "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300",
+                danger: "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200",
+                success: "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200",
+            };
+
+            return (
+                <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]}`}>
+                    {Icon && <Icon />}
+                    {children}
+                </button>
+            );
+        };
+
+        // --- Topic 1: Algorithm Properties Visualizer ---
+
+        const AlgorithmInfo = () => {
+            const properties = [
+                { name: "Finiteness", desc: "Must terminate after a finite number of steps.", icon: "⏱️" },
+                { name: "Definiteness", desc: "Each step must be precisely and clearly stated.", icon: "📝" },
+                { name: "Effectiveness", desc: "Steps must be executable in finite time.", icon: "⚡" },
+                { name: "Generality", desc: "Must solve all problems of a given type.", icon: "🌐" },
+                { name: "Input/Output", desc: "Takes ≥0 inputs and produces ≥1 output.", icon: "🔄" },
+            ];
+
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 fade-in">
+                    {properties.map((p) => (
+                        <div key={p.name} className="bg-slate-50 p-6 rounded-xl border border-slate-200 hover:shadow-md transition-shadow">
+                            <div className="text-4xl mb-3">{p.icon}</div>
+                            <h4 className="text-lg font-bold text-slate-800 mb-2">{p.name}</h4>
+                            <p className="text-slate-600 text-sm">{p.desc}</p>
+                        </div>
+                    ))}
+                    <div className="bg-blue-50 p-6 rounded-xl border border-blue-200 col-span-1 md:col-span-2 lg:col-span-1">
+                        <h4 className="text-lg font-bold text-blue-800 mb-2">Definition</h4>
+                        <p className="text-blue-700 text-sm italic">
+                            "A step-by-step procedure for solving a problem... breaking it into simple cases."
+                        </p>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Topic 2: Priority Queue Visualizer ---
+
+        const PriorityQueue = () => {
+            const [queue, setQueue] = useState([
+                { id: 1, val: "Job A", priority: 2, type: "Foreground" },
+                { id: 2, val: "Job B", priority: 1, type: "Background" },
+                { id: 3, val: "Job C", priority: 5, type: "Real-time" },
+            ]);
+            const [newTask, setNewTask] = useState("");
+            const [newPriority, setNewPriority] = useState(1);
+            const [logs, setLogs] = useState([]);
+
+            // Sort initial state correctly
+            useEffect(() => {
+                setQueue(q => [...q].sort((a,b) => b.priority - a.priority));
+            }, []);
+
+            const addLog = (msg) => setLogs(prev => [msg, ...prev].slice(0, 5));
+
+            const enqueue = () => {
+                if (!newTask) return;
+                const task = {
+                    id: Date.now(),
+                    val: newTask,
+                    priority: parseInt(newPriority),
+                    type: newPriority > 4 ? "Real-time" : newPriority > 2 ? "Foreground" : "Background"
+                };
+                
+                const newQueue = [...queue, task].sort((a, b) => b.priority - a.priority);
+                setQueue(newQueue);
+                addLog(`Enqueued "${newTask}" with Priority ${newPriority}`);
+                setNewTask("");
+            };
+
+            const dequeue = () => {
+                if (queue.length === 0) return;
+                const [removed, ...rest] = queue;
+                setQueue(rest);
+                addLog(`Processed "${removed.val}" (Highest Priority: ${removed.priority})`);
+            };
+
+            return (
+                <div className="space-y-6 fade-in">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <Card title="OS Scheduler Simulation" className="lg:col-span-2">
+                            <div className="flex flex-col gap-4">
+                                <div className="flex flex-wrap gap-4 items-end bg-slate-50 p-4 rounded-lg">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 mb-1">Job Name</label>
+                                        <input 
+                                            value={newTask}
+                                            onChange={(e) => setNewTask(e.target.value)}
+                                            className="px-3 py-2 rounded border border-slate-300 text-sm w-40"
+                                            placeholder="e.g. System Update"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 mb-1">Priority (1-10)</label>
+                                        <input 
+                                            type="number" 
+                                            min="1" 
+                                            max="10" 
+                                            value={newPriority}
+                                            onChange={(e) => setNewPriority(e.target.value)}
+                                            className="px-3 py-2 rounded border border-slate-300 text-sm w-24"
+                                        />
+                                    </div>
+                                    <Button onClick={enqueue} icon={IconPlus}>Enqueue</Button>
+                                    <Button onClick={dequeue} variant="success" icon={IconPlay} disabled={queue.length === 0}>Process Job</Button>
+                                </div>
+
+                                <div className="min-h-[200px] bg-slate-100 rounded-lg p-4 flex flex-col gap-2 relative overflow-hidden">
+                                    <span className="absolute top-2 right-2 text-xs font-bold text-slate-400 uppercase tracking-widest">High Priority Top</span>
+                                    {queue.length === 0 ? (
+                                        <div className="flex-1 flex items-center justify-center text-slate-400">Queue is empty</div>
+                                    ) : (
+                                        queue.map((item, idx) => (
+                                            <div key={item.id} className="bg-white p-3 rounded shadow-sm flex items-center justify-between border-l-4 border-l-blue-500 fade-in"
+                                                 style={{ borderColor: item.priority > 4 ? '#ef4444' : item.priority > 2 ? '#3b82f6' : '#64748b' }}>
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm
+                                                        ${item.priority > 4 ? 'bg-red-500' : item.priority > 2 ? 'bg-blue-500' : 'bg-slate-500'}`}>
+                                                        {item.priority}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-slate-800">{item.val}</div>
+                                                        <div className="text-xs text-slate-500">{item.type}</div>
+                                                    </div>
+                                                </div>
+                                                {idx === 0 && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Next</span>}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </Card>
+
+                        <Card title="Event Log">
+                            <div className="space-y-2 text-sm text-slate-600 font-mono h-[300px] overflow-y-auto">
+                                {logs.map((log, i) => (
+                                    <div key={i} className="border-b border-slate-100 pb-2 mb-2 last:border-0 fade-in">
+                                        <span className="text-slate-400 text-xs block">{new Date().toLocaleTimeString()}</span>
+                                        {log}
+                                    </div>
+                                ))}
+                                {logs.length === 0 && <span className="text-slate-400 italic">No activity yet.</span>}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Topic 3 & 4: Heaps & Heap Sort Visualizer ---
+
+        const getTreeCoordinates = (index, totalNodes, width = 600) => {
+            const level = Math.floor(Math.log2(index + 1));
+            const nodesInLevel = Math.pow(2, level);
+            const positionInLevel = index - Math.pow(2, level) + 1;
+            
+            // Calculate X based on position in level, but spread out more for deeper trees
+            // Simple logic: Divide width by (nodesInLevel + 1)
+            const x = (width / (nodesInLevel + 1)) * positionInLevel;
+            const y = (level + 1) * 60;
+            
+            return { x, y };
+        };
+
+        const HeapVisualizer = ({ isSortingMode = false }) => {
+            const [heap, setHeap] = useState([91, 84, 57, 38, 48, 25, 10]);
+            const [inputValue, setInputValue] = useState("");
+            const [message, setMessage] = useState("Max Heap initialized.");
+            const [highlightIndices, setHighlightIndices] = useState([]);
+            const [sortedArray, setSortedArray] = useState([]);
+            
+            // SVG Dimensions
+            const svgWidth = 700;
+            const svgHeight = 400;
+
+            const insert = async () => {
+                if (!inputValue) return;
+                const val = parseInt(inputValue);
+                const newHeap = [...heap, val];
+                setHeap(newHeap);
+                setInputValue("");
+                setMessage(`Inserted ${val} at the end (leaf). Bubbling up...`);
+                
+                let current = newHeap.length - 1;
+                while (current > 0) {
+                    let parent = Math.floor((current - 1) / 2);
+                    setHighlightIndices([current, parent]);
+                    await new Promise(r => setTimeout(r, 800));
+                    
+                    if (newHeap[current] > newHeap[parent]) {
+                        setMessage(`${newHeap[current]} > ${newHeap[parent]}. Swapping.`);
+                        [newHeap[current], newHeap[parent]] = [newHeap[parent], newHeap[current]];
+                        setHeap([...newHeap]);
+                        current = parent;
+                    } else {
+                        setMessage(`Heap property satisfied.`);
+                        break;
+                    }
+                }
+                setHighlightIndices([]);
+                setTimeout(() => setMessage("Ready"), 1000);
+            };
+
+            const deleteRoot = async () => {
+                if (heap.length === 0) return;
+                setMessage(`Removing root ${heap[0]}. Replacing with last element ${heap[heap.length-1]}.`);
+                
+                const last = heap[heap.length - 1];
+                const newHeap = heap.slice(0, -1);
+                
+                if (newHeap.length > 0) {
+                    newHeap[0] = last;
+                    setHeap([...newHeap]);
+                    
+                    let current = 0;
+                    while (true) {
+                        let left = 2 * current + 1;
+                        let right = 2 * current + 2;
+                        let largest = current;
+
+                        if (left < newHeap.length) {
+                            setHighlightIndices([current, left]);
+                            await new Promise(r => setTimeout(r, 600));
+                            if (newHeap[left] > newHeap[largest]) largest = left;
+                        }
+
+                        if (right < newHeap.length) {
+                             if (newHeap[right] > newHeap[largest]) largest = right;
+                        }
+
+                        if (largest !== current) {
+                            setMessage(`Swapping ${newHeap[current]} with larger child ${newHeap[largest]}`);
+                            [newHeap[current], newHeap[largest]] = [newHeap[largest], newHeap[current]];
+                            setHeap([...newHeap]);
+                            current = largest;
+                        } else {
+                            break;
+                        }
+                    }
+                } else {
+                    setHeap([]);
+                }
+                setHighlightIndices([]);
+                setMessage("Reheapify complete.");
+            };
+
+            const performSortStep = () => {
+                if (heap.length === 0) {
+                    setMessage("Sorting Complete!");
+                    return;
+                }
+                const root = heap[0];
+                const last = heap[heap.length - 1];
+                const remaining = heap.slice(0, -1);
+                
+                setSortedArray(prev => [root, ...prev]); 
+                
+                if (remaining.length > 0) {
+                    remaining[0] = last;
+                    let i = 0;
+                    while(true) {
+                        let left = 2 * i + 1;
+                        let right = 2 * i + 2;
+                        let largest = i;
+                        if (left < remaining.length && remaining[left] > remaining[largest]) largest = left;
+                        if (right < remaining.length && remaining[right] > remaining[largest]) largest = right;
+                        if (largest !== i) {
+                            [remaining[i], remaining[largest]] = [remaining[largest], remaining[i]];
+                            i = largest;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                setHeap(remaining);
+                setMessage(`Moved Max (${root}) to sorted region. Reheapified.`);
+            };
+
+            const resetSort = () => {
+                setHeap([91, 84, 57, 38, 48, 25, 10, 5, 20]);
+                setSortedArray([]);
+                setMessage("Heap reset. Ready to sort.");
+            };
+
+            return (
+                <div className="space-y-6 fade-in">
+                    <Card title={isSortingMode ? "Heap Sort Visualizer" : "Max Heap Interactive Tree"}>
+                        <div className="flex flex-col gap-4">
+                            
+                            {/* Controls */}
+                            <div className="flex flex-wrap gap-4 items-center bg-slate-50 p-4 rounded-lg">
+                                {!isSortingMode ? (
+                                    <>
+                                        <input 
+                                            type="number" 
+                                            value={inputValue} 
+                                            onChange={(e) => setInputValue(e.target.value)} 
+                                            className="px-3 py-2 border rounded w-24"
+                                            placeholder="Num"
+                                        />
+                                        <Button onClick={insert} icon={IconPlus}>Insert</Button>
+                                        <div className="w-px h-8 bg-slate-300 mx-2"></div>
+                                        <Button onClick={deleteRoot} variant="danger" icon={IconTrash}>Delete Root</Button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Button onClick={resetSort} variant="secondary" icon={IconRotate}>Reset Array</Button>
+                                        <Button onClick={performSortStep} icon={IconPlay} disabled={heap
